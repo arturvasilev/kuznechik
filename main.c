@@ -11,22 +11,9 @@
 #include "mycrypt.h"
 using namespace std;
 
-
-void print_w128(w128_t *x)
-{
-	int i;
-	
-	for (i = 0; i < 16; i++)
-		printf(" %02X", x->b[i]);
-	printf("\n");
-}
-
-
 int main(int argc, char **argv)
 {	
-	int i,j;
-	kuz_key_t key;
-	w128_t x;
+	int i;
 
     uint8_t testvec_key[32] = {
 		0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 
@@ -35,7 +22,7 @@ int main(int argc, char **argv)
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF	
 	};
 
-	vector<bool> inputvecb={
+/*	vector<bool> inputvecb={
 		0,0,0,1,0,0,0,1,
 		0,0,1,0,0,0,1,0, 
 		0,0,1,1,0,0,1,1,
@@ -53,69 +40,74 @@ int main(int argc, char **argv)
 		1,0,0,1,1,0,0,1,
 		1,0,0,0,1,0
 		};
-
-	vector<bool> cryptvecb;
-	vector<bool> decryptvecb;
+*/
+	vector<uint8_t> inputvec={
+		0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x00,
+		0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88,
+		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+		0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xEE, 0xFF, 0x0A,
+		0x11, 0X22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+		0x99, 0xAA, 0xBB, 0xCC, 0xEE, 0xFF, 0x0A, 0x00,
+		0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+		0xAA, 0xBB, 0xCC, 0xEE, 0xFF, 0x0A, 0x00
+	};
+	vector<uint8_t> cryptvec;
+	vector<uint8_t> decryptvec;
 	cout<<"\nИсходное сообщение:\n";
-	for(i=0;i<inputvecb.size();i++)
+	for(i=0;i<inputvec.size();i++)
 		{
-			cout<<inputvecb[i]<<' ';
-			if(i%8==7)cout<<' ';
+			cout<<hex<<int(inputvec[i])<<' ';
+			if(i%16==15)cout<<endl;
 		}
-    
+ 	
     uint8_t cmac[8],decryptcmac[8],decryptmesmac[8];
 
-	MAC(testvec_key, inputvecb, cmac);
+	MAC(testvec_key, inputvec, cmac);
 	cout<<"\nИмитовставка\n";
 	for(i=0; i<8; i++)
 		cout<<hex<<int(cmac[i])<<' ';
 	cout<<endl;
-	
-	crypt(testvec_key,inputvecb,cryptvecb,cmac);
+
+	crypt(testvec_key,inputvec,cryptvec,cmac);
 
 	cout<<"\nЗашифрованное сообщение:\n";
-	for(i=0;i<cryptvecb.size();i++)
+	for(i=0;i<cryptvec.size();i++)
 		{
-			cout<<cryptvecb[i]<<' ';
-			if(i%8==7)cout<<' ';
+			cout<<hex<<int(cryptvec[i])<<' ';
+			if(i%16==15)cout<<endl;
 		}
 	cout<<endl;
 
-	decrypt(testvec_key, cryptvecb, decryptvecb);
+	
+	decrypt(testvec_key, cryptvec, decryptvec);
 
 	cout<<"\nСырое расшифрованное сообщение:\n";
 	
-	for(i=0;i<decryptvecb.size();i++)
+	for(i=0;i<decryptvec.size();i++)
 		{
-			cout<<decryptvecb[i]<<' ';
-			if(i%8==7)cout<<' ';
+			cout<<hex<<int(decryptvec[i])<<' ';
+			if(i%16==15)cout<<endl;
 		}
 	cout<<endl;
+	
+	//decryptvec[10]=0;
 
-	//decryptvecb[10]=0;
-
-
-	int startbitmac=inputvecb.size();
+	int startbitmac=inputvec.size();
 	cout<<"\nНачало имитовставки : "<<dec<<startbitmac<<endl;
 
 	for(i=0;i<8;i++)
 	{
-		decryptcmac[i]=int(decryptvecb[i*8+startbitmac]);
-		for(j=1;j<8;j++)
-			{
-				decryptcmac[i]=decryptcmac[i]<<1;
-				decryptcmac[i]=decryptcmac[i] | int(decryptvecb[i*8+j+startbitmac]);
-			}
+		decryptcmac[i]=int(decryptvec[i+startbitmac]);
 	}
 
 	cout<<"\nРасшифрованная имитовставка\n";
 	for(i=0;i<8;i++)
 		cout<<hex<<int(decryptcmac[i])<<' ';
 	cout<<endl;
+	
+	decryptvec.erase(decryptvec.begin()+startbitmac,decryptvec.end());
 
-	decryptvecb.erase(decryptvecb.begin()+startbitmac,decryptvecb.end());
-
-	MAC(testvec_key,decryptvecb,decryptmesmac);
+	MAC(testvec_key,decryptvec,decryptmesmac);
 	cout<<"\nИмитовставка расшифрованного сообщения\n";
 	for(i=0;i<8;i++)
 		cout<<hex<<int(decryptmesmac[i])<<' ';

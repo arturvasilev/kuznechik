@@ -1,7 +1,7 @@
 # Makefile
 # 04-Jan-15 Markku-Juhani O. Saarinen <mjos@iki.fi>
 
-BIN	= xtest
+BIN	= xtest.out
 OBJS	= main.o \
 	kuznechik_8bit.o\
 	mycrypt.o
@@ -10,7 +10,7 @@ OBJS	= main.o \
 DIST	= kuznechik
 
 CC	= g++
-CFLAGS	= -Wall -Ofast -march=native
+CFLAGS	= -Wall -Ofast -march=native -std=c++11
 LIBS	=
 LDFLAGS	=
 INCS	=

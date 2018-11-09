@@ -25,9 +25,10 @@ int MSB(uint8_t cc)
     return cc>>7;
 }
 
-void MAC(uint8_t key_t[32], vector<uint8_t> input, uint8_t output[8], bool full)
+void MAC(uint8_t key_t[32], vector<uint8_t> input, uint8_t output[8])
 {
     int i;
+    bool full;
 #ifdef DEBUG
     cout<<"\nНачало вычисления имитовставки с байтовым вектором\nВходные данные\n";
     for(i=0;i<input.size();i++)
@@ -45,19 +46,15 @@ void MAC(uint8_t key_t[32], vector<uint8_t> input, uint8_t output[8], bool full)
 	uint8_t R[16], K1[16], K2[16];
 
 
-    //if(input.size()%16==0)full=true;
-    //else full=false;
+    if(input.size()%16==0)full=true;
+    else full=false;
+    if(!full)
+    {
+        input.push_back(0b10000000);
+        while(input.size()%16!=0)input.push_back(0x00);
+    }
     int blocks=input.size()/16;
-/*    if(!full)blocks++;*/
 
-  /*  if(!full)
-        {
-        input.push_back(0x80);
-        for(i=input.size();i<blocks*16;i++)
-            input.push_back(0x00);
-        }
-
-*/
     kuz_key_t key;
 	w128_t x;   
        
@@ -156,7 +153,7 @@ void MAC(uint8_t key_t[32], vector<uint8_t> input, uint8_t output[8], bool full)
         output[i]=x.b[i];
 }
 
-void MAC(uint8_t key_t[32], vector<bool> input, uint8_t output[8])
+/*void MAC(uint8_t key_t[32], vector<bool> input, uint8_t output[8])
 {
 #ifdef DEBUG 
     cout<<"\nНачало вычисления имитовставки с булевским вектором\n";
@@ -211,8 +208,7 @@ void MAC(uint8_t key_t[32], vector<bool> input, uint8_t output[8])
         cout<<hex<<int(inputi[i])<<' ';
     cout<<"\nПередача данных в следующую функцию\n";
 #endif
-    //uint8_t key_t[32];
-    //for(i=0;i<32;i++)key_t[32]=key[32];
+
     MAC(key_t, inputi , output, full);
 
 #ifdef DEBUG
@@ -221,31 +217,30 @@ void MAC(uint8_t key_t[32], vector<bool> input, uint8_t output[8])
 #endif
 
 }
-
-int crypt(uint8_t key_t[32], vector<uint8_t> input, vector<uint8_t> &output)
+*/
+int crypt(uint8_t key_t[32], vector<uint8_t> input, vector<uint8_t> &output, uint8_t cmac[8])
 {
     
     uint8_t tmpblock[16];
     kuz_key_t key;
-     
+ #ifdef DEBUG
+    cout<<"Начало шифрования\n";
+#endif
+
     kuz_set_encrypt_key(&key, key_t);
-    bool full;
     int i,j;
 
-    if(input.size()%16==0)full=true;
-    else full=false;
+    for(i=0;i<8;i++)
+        input.push_back(cmac[i]);
+    
+    while(input.size()%16!=0)
+        input.push_back(0);
 
     int blocks=input.size()/16;
-    if(!full)blocks++;
 
-    output.reserve(input.size());
-
-    if(!full)
-        for(i=input.size();i<blocks*16;i++)
-            input.push_back(0x00);
 
  #ifdef DEBUG       
-    cout<<"Input: ";
+    cout<<"Входные данные шифрования с имитовставкой и дополненные нулями:\n";
     for(i=0;i<input.size();i++)
         cout<<hex<<int(input.at(i))<<' ';
     cout<<endl;
@@ -261,7 +256,7 @@ int crypt(uint8_t key_t[32], vector<uint8_t> input, vector<uint8_t> &output)
     }
 
 #ifdef DEBUG
-    cout<<"Output:";
+    cout<<"Выходные данные шифрования:\n";
     for(i=0;i<output.size();i++)
         cout<<hex<<int(output.at(i))<<' ';
     cout<<endl;
@@ -269,12 +264,15 @@ int crypt(uint8_t key_t[32], vector<uint8_t> input, vector<uint8_t> &output)
     return 1;
 }
 
-int crypt(uint8_t key_t[32], vector<bool> input, vector<bool> &output, uint8_t mac[8])
+/*int crypt(uint8_t key_t[32], vector<bool> input, vector<bool> &output, uint8_t cmac[8])
 {
+    
 #ifdef DEBUG
     cout<<"\nНачало шифрования\n";
 #endif
     int i,j;
+    
+    
     for(i=0;i<8;i++)
     {
         for(j=0;j<8;j++)
@@ -327,45 +325,26 @@ int crypt(uint8_t key_t[32], vector<bool> input, vector<bool> &output, uint8_t m
             }
     return 1;
 }
+*/
 
-int decrypt(uint8_t key_t[32], std::vector<bool> input, std::vector<bool> &output)
+int decrypt(uint8_t key_t[32], std::vector<uint8_t> input, std::vector<uint8_t> &output)
 {
-    vector<uint8_t> inputi;
-    vector<uint8_t> outputi;
     int i,j;
     i=0;
     int k;
     uint8_t tmpblock[16];
     kuz_key_t key;
-    int blocks=input.size()/128;
-    while(i<input.size())
-    {
-        inputi.push_back(int(input.at(i)));
-        i++;
-        for(j=1;j<8;j++)
-        {
-            inputi[k]=inputi[k]<<1 | input[i];
-            i++;
-        }
-        k++;
-    }  
+    int blocks=input.size()/16;
 
     kuz_set_decrypt_key(&key, key_t);
     
     for(i=0;i<blocks;i++)
         {
-        copy(inputi.begin()+i*16,inputi.begin()+(i+1)*16,tmpblock);
+        copy(input.begin()+i*16,input.begin()+(i+1)*16,tmpblock);
         kuz_decrypt_block(&key, tmpblock); 
 
         for(j=0;j<16;j++)
-            outputi.push_back(tmpblock[j]);
-        }
-    
-    for(i=0;i<outputi.size();i++)
-        for(j=0;j<8;j++)
-            {
-                output.push_back(outputi[i]>>7);
-                outputi[i]=outputi[i]<<1;
-            }
+            output.push_back(tmpblock[j]);
+        } 
     return 1;
 }
